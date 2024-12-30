@@ -10,7 +10,7 @@ app.use(express.json());
 
 // mongoDB Connection
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y1njy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -44,6 +44,23 @@ async function run() {
         res.send(result)
     })
 
+    // Get car data based on id for showing details
+    app.get('/viewDetails/:id', async(req,res)=>{
+        const id= req.params.id;
+        const query= {_id: new ObjectId(id)};
+        const result= await carCollection.findOne(query);
+        res.send(result);
+    })
+
+    //get car data based on userEmail 
+    app.get('/myCars',async(req,res)=>{
+        const userEmail= req.query.userEmail;
+        const query= {userEmail:userEmail};
+        const result= await carCollection.find(query).toArray();
+        res.send(result)
+    })
+
+    // basic setup
     app.get('/', (req,res)=>{
         res.send('Car Rental Server is running')
     })
