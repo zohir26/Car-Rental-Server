@@ -183,14 +183,36 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const port = 4000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin:['http://localhost:5173'],
+    credentials:true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
+//create a function to verify each information coming from client. it also called middlewire
+const verifyToken= (req,res, next)=>{
+    const token= req.cookies?.token;
+    console.log('token inside the verify token', token)
+    if(!token){
+        return res.status(401).send({message:'unautorized access'})
+    }
+    //verify the token if token exist
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err, decoded)=>{
+        if(err){
+            return res.status(401).send({message:'unauthorized access'})
+        }
+        next()
+    })
+
+}
 // MongoDB Connection
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y1njy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const client = new MongoClient(uri, {
@@ -205,6 +227,30 @@ async function run() {
   try {
     const carCollection = client.db('Car_Collection_DB').collection('Car_Collection');
     const bookingCollection = client.db('Car_Collection_DB').collection('My_Bookings');
+
+    // create jwot token post 
+    app.post('/jwt',(req,res) =>{
+        const user= req.body;
+        const token= jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn:'5h'} );
+
+        res
+        .cookie('token',token, {
+            httpOnly:true,
+            secure:false
+        })
+        .send({
+            success:true
+        })
+    })
+
+    //clear cookie jwot token on logout
+    app.post('/logoutToken', (req,res)=>{
+        res.clearCookie('token', {
+            httpOnly:true,
+            secure:false
+        })
+        .send({success:true})
+    })
 
     // Connect the client to the server (optional starting in v4.7)
     await client.connect();
@@ -271,15 +317,19 @@ async function run() {
     });
 
     // Get cars by userEmail
-    app.get('/myCars', async (req, res) => {
+    app.get('/myCars', verifyToken , async (req, res) => {
       const userEmail = req.query.userEmail;
       const query = { userEmail: userEmail };
+
+      console.log(req.cookies)
+
+      
       const result = await carCollection.find(query).toArray();
       res.send(result);
     });
 
     // Book a car
-    app.post('/myBookings', async (req, res) => {
+    app.post('/myBookings',verifyToken, async (req, res) => {
       const bookCar = req.body;
       const result = await bookingCollection.insertOne(bookCar);
       res.send(result);
@@ -300,7 +350,7 @@ async function run() {
     });
 
     // Get bookings by userEmail
-    app.get('/myBookings', async (req, res) => {
+    app.get('/myBookings', verifyToken, async (req, res) => {
       const userEmail = req.query.userEmail;
       const query = { userEmail: userEmail };
       const result = await bookingCollection.find(query).toArray();
