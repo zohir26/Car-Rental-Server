@@ -82,10 +82,15 @@ async function run() {
 
     // Get all cars
     app.get('/addCar', async (req, res) => {
-        const cursor = carCollection.find();
-        const result = await cursor.toArray();
-        res.send(result);
+      console.log('pagination', req.query);
+      const page = parseInt(req.query.page) ;
+      const size = parseInt(req.query.size) ;
+    
+      const cursor = carCollection.find();
+      const result = await cursor.skip(page * size).limit(size).toArray();
+      res.send(result);
     });
+    
 
     // Delete a car by id
     app.delete('/cars/:id',  async (req, res) => {
@@ -216,7 +221,7 @@ async function run() {
     // Get car details by id
     app.get('/viewDetails/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id), userEmail: req.query.userEmail };
+      const query = { _id: new ObjectId(id)};
   
       const result = await carCollection.findOne(query);
       if (!result) {
@@ -228,7 +233,7 @@ async function run() {
 
     // Get cars by userEmail
     app.get('/myCars', verifyToken, async (req, res) => {
-        const userEmail = req.user.userEmail;
+        const userEmail = req.user.email;
         console.log('email' , req.user.email , req.query.userEmail)
         if (req.user.email !== req.query.userEmail) {
             return res.status(403).send({ message: 'Forbidden access' });
@@ -240,7 +245,7 @@ async function run() {
     });
 
     // Book a car
-    app.post('/myBookings', async (req, res) => {
+    app.post('/myBookings',  async (req, res) => {
         const bookCar = req.body;
 
         const result = await bookingCollection.insertOne(bookCar);
@@ -248,24 +253,19 @@ async function run() {
     });
 
     // Update booking
-    app.put('/updateBooking/:id',  async (req, res) => {
+    app.put('/updateBooking/:id', async (req, res) => {
       const id = req.params.id;  // id from URL
       const updatedBooking = req.body;  // Data to update
+  
       const options = { upsert: true };
-      const updateDoc= {
-        $set: { updatedBooking }
-      }
+      const updateDoc = {
+          $set: updatedBooking  // Remove nested `updatedBooking`
+      };
+  
       try {
-          // Convert the string id to ObjectId
-          const query = { _id: new ObjectId(id) };
+          const query = { _id: (id) };
   
-          // // Ensure the user is authorized to update this booking
-          // if (req.user.email !== updatedBooking.userEmail) {
-          //     return res.status(403).send({ message: 'Forbidden access' });
-          // }
-  
-          // Update booking
-          const result = await bookingCollection.updateOne(query,updateDoc, options );
+          const result = await bookingCollection.updateOne(query, updateDoc, options);
   
           if (result.matchedCount === 0) {
               return res.status(404).send({ message: 'Booking not found or forbidden access' });
@@ -277,6 +277,7 @@ async function run() {
           res.status(500).send({ message: 'Internal server error' });
       }
   });
+  
   
   
 
