@@ -4,6 +4,7 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+
 const port = 4000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const EventEmitter = require('events'); const emitter = new EventEmitter();
@@ -249,14 +250,24 @@ async function run() {
         const bookCar = req.body;
 
         const result = await bookingCollection.insertOne(bookCar);
-        res.send(result);
+        const carId = bookCar.carId;
+       const updateResult = await carCollection.updateOne({
+        _id:new ObjectId(carId)
+       },{$inc:{bookingCount:1}})
+      
+        if(updateResult.modifiedCount ===1) {
+          res.status(200).json({message:'Booking Successful and counted'})
+        }else{
+          res.status(404).json({error:'Failed tou update booking count'})
+        } 
     });
 
     // Update booking
     app.put('/updateBooking/:id', async (req, res) => {
       const id = req.params.id;  // id from URL
-      const updatedBooking = req.body;  // Data to update
-  
+      const updatedBooking = req.body;  
+      // Data to update
+      
       const options = { upsert: true };
       const updateDoc = {
           $set: updatedBooking  // Remove nested `updatedBooking`
