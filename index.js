@@ -233,7 +233,7 @@ async function run() {
         app.delete('/myBookings/:id', async (req, res) => {
             const id = req.params.id;
             try {
-                const query = { _id: new ObjectId (id)};
+                const query = { _id:  (id)};
                 const result = await bookingCollection.deleteOne(query);
                 if (result.deletedCount === 0) {
                     return res.status(404).send({ message: 'Booking not found' });
